@@ -1,0 +1,151 @@
+﻿@{
+    ViewData["Title"] = "Home Page";
+}
+
+<div class="text-center">
+    <h1 class="display-4">Welcome</h1>
+    <div class="row">
+        <div class="col-md-10 offset-2">
+            <div id="connectionState">
+            </div>
+            <table>
+                <tr>
+                    <td style="padding: 10px">
+                        <div style=" text-align: center"><b></b></div>
+
+                        <div style=" text-align: center">
+                            <h4>
+                                <b>
+
+                                </b>
+                            </h4>
+                        </div>
+                    </td>
+                </tr>
+            </table>
+
+        </div>
+    </div>
+</div>
+
+@section Scripts
+{
+
+    <script src="~/microsoft/signalr/dist/browser/signalr.min.js"></script>
+
+    <script>
+
+        var _hubConnection = new signalR.HubConnectionBuilder().withUrl('https://localhost:7118/gameHub', {
+            skipNegotiation: true,
+            transport: signalR.HttpTransportType.WebSockets
+        })
+            .build();
+        function ShowConnectionState() {
+
+            $('#connectionState').html(`<div class="alert alert-success">Bağlantı Durumu : ${_hubConnection.q} </div>`);
+        }
+
+
+
+        var modelGames = [];
+        _hubConnection.start().then(() => {
+            ShowConnectionState();
+        }).catch((err) => {
+            ShowConnectionState();
+            console.log('Hata : ');
+        });
+
+        var connId = "";
+        this._hubConnection.on('GetConnectionId', (connectionId, string) => {
+            connId = connectionId;
+            console.log("ConnectionID :" + connectionId);
+            getGames(connectionId);
+ 
+        });
+
+        this._hubConnection.on('ChangeGame', (game, Game) => {
+            var $table = $('table');
+
+            $table.empty();
+            debugger;
+            var item = this.modelGames.find(rd => rd.name == game.Name);
+           
+            this.modelGames = this.modelGames.filter(gam => gam != item);
+            var transformedData = {};
+            Object.keys(game).forEach(key => {
+                var newKey = key.charAt(0).toLowerCase() + key.slice(1).toLowerCase();
+                transformedData[newKey] = game[key];
+            });
+
+         
+       
+            this.modelGames.push(transformedData);
+            var $tableRow = $('<tr>');
+         
+            modelGames.forEach(x => {
+
+                var $tableData = $('<td>').css('padding', '10px');
+
+                console.log(x);
+                var $tableData = $('<td>').css('padding', '10px');
+                var gameDiv = $('<div>').css('text-align', 'center').html('<b>[' + x.id + '] ' + x.name + '</b>');
+                var img = $('<img>').attr('src', 'https://localhost:7286/assets/images/' + x.name + '.jpg').attr('height', '220');
+                var priceDiv = $('<div>').css('text-align', 'center').html('<h4><b><font color="red">' + x.price + ' €</font></b></h4>');
+
+
+                $tableData.append(gameDiv, img, priceDiv);
+                $tableRow.append($tableData);
+            });
+            $table.append($tableRow);
+
+          
+        });
+
+
+        function getGames(_connectionId) {
+            var gameUrl = "https://localhost:7118/games/";
+
+            $.ajax({
+                url: gameUrl + _connectionId,
+                type: 'GET',
+                dataType: 'json',
+                success: function (response) {
+                  
+                    var tableRow = $('<tr>');
+                    var transformedData = response.map(item => {
+                        var newItem = {};
+                        Object.keys(item).forEach(key => {
+                            // Her bir property isminin ilk harfini küçük harfe dönüştür
+                            var newKey = key.charAt(0).toLowerCase() + key.slice(1).toLowerCase();
+                            newItem[newKey] = item[key];
+                        });
+                        return newItem;
+                    });
+
+                    console.log(transformedData);
+                 
+                    $.each(transformedData, function (index, game) {
+                        var tableData = $('<td>').css('padding', '10px');
+
+                        var gameDiv = $('<div>').css('text-align', 'center').html('<b>[' + game.id + '] ' + game.name + '</b>');
+                        var img = $('<img>').attr('src', 'https://localhost:7286/assets/images/' + game.name + '.jpg').attr('height', '220');
+                        var priceDiv = $('<div>').css('text-align', 'center').html('<h4><b><font color="red">' + game.price + ' €</font></b></h4>');
+
+                        tableData.append(gameDiv, img, priceDiv);
+                        tableRow.append(tableData);
+                       
+                        modelGames.push(game);
+                    });
+                   
+                    console.log("games:" + modelGames);
+                    $('table').append(tableRow);
+                },
+                error: function (xhr, status, error) {
+                    debugger;
+                    console.error(status + ': ' + error);
+                }
+            })
+        };
+        
+    </script>
+}
